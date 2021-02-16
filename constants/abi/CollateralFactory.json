@@ -30,8 +30,8 @@
         "type": "address"
       },
       {
-        "internalType": "address payable",
-        "name": "factoryowner_",
+        "internalType": "address",
+        "name": "factoryaddress_",
         "type": "address"
       },
       {

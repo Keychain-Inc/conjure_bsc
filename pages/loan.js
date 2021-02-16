@@ -8,12 +8,16 @@ import {isAddress} from "@ethersproject/address";
 import {Contract} from "@ethersproject/contracts";
 import ABI from "../constants/abi/conjure.json";
 import COLLATERAL_ABI from "../constants/abi/Collateral.json"
+import COLLATERAL_FACTORY_ABI from "../constants/abi/CollateralFactory.json"
 import Select, {components} from 'react-select'
+import {Fragment, FunctionFragment, Interface} from "@ethersproject/abi"
+
 
 import { useRouter } from 'next/router'
 import {
-    CHAINLINK_OPTIONS
+    COLLATERAL_MINT_ADDRESS
 } from "../constants";
+import { InfuraProvider} from "@ethersproject/providers";
 import {defaultAbiCoder} from "@ethersproject/abi";
 import {DateTime} from "luxon";
 import {format_friendly, getEtherscanLink} from "../lib/utils";
@@ -67,6 +71,8 @@ function Loan() {
 
     const [loanarray, setloanarray] = useState([]);
     const [loanratios, setloanrations] = useState([]);
+    const [collarray, setcollarrayy] = useState([]);
+    const [conjurearray, setconjurearray] = useState([]);
 
     const [withdrawamount, setwithdrawamount] = useState(0);
     const [depositamount, setdepositamount] = useState(0);
@@ -135,11 +141,100 @@ function Loan() {
     }, [account, library, conjureAddress, first_autocheck, check_query]);
 
 
+    // effect hook for updating data
+    useEffect(() => {
+
+        if (account)
+        {
+            getUserLoans();
+        }
+
+    }, [account]);
+
+
     //format addresses in ui
     function format_address(address)
     {
         const new_address = address.substring(0,5) + '...' + address.slice(-3)
         return new_address;
+    }
+
+    async function getUserLoans()
+    {
+        if (!account)
+        {
+            addToast({body:"Please Connect your Wallet before accessing the loan interface", type: "error"});
+            return;
+        }
+
+        const collfactory_contract = isAddress(COLLATERAL_MINT_ADDRESS) && !!COLLATERAL_FACTORY_ABI && !!library ? new Contract(COLLATERAL_MINT_ADDRESS, COLLATERAL_FACTORY_ABI, library) : undefined;
+
+        // get all descriptions for the events
+        let filter = collfactory_contract.filters.NewBnbCollateralContract();
+        const past_events = await library.getLogs({
+            fromBlock: 0,
+            toBlock: "latest",
+            address: collfactory_contract.address,
+            topics: filter['topics']
+        });
+
+        const eventParser = new Interface(COLLATERAL_FACTORY_ABI)
+
+        let contract_array = [];
+
+        past_events?.map(event => {
+            const eventParsed = eventParser.parseLog(event).args
+            contract_array.push(eventParsed.deployed)
+        })
+
+        console.log(contract_array)
+
+        // get all loan ids open
+        let temp_loans = [];
+        let temp_ratio = [];
+        let temp_coll = [];
+        let temp_conjure = [];
+
+        let k;
+        for (k = 0; k < contract_array.length; k++) {
+            let temp_contract_address = contract_array[k];
+
+            const temp_coll_contract = isAddress(temp_contract_address) && !!COLLATERAL_ABI && !!library ? new Contract(temp_contract_address, COLLATERAL_ABI, library) : undefined;
+            const openloans = await temp_coll_contract.openLoanIDsByAccount(account);
+            const temp_conj_addres = await temp_coll_contract.arbasset();
+            console.log(openloans)
+
+            const temp_conj_contract = isAddress(temp_conj_addres) && !!ABI && !!library ? new Contract(temp_conj_addres, ABI, library) : undefined;
+            const symbol = await temp_conj_contract.symbol();
+
+            if (openloans.length > 0)
+            {
+
+                let i;
+                for (i = 0; i < openloans.length; i++)
+                {
+                    const loaninfo = await temp_coll_contract.getLoan(account, openloans[i])
+                    console.log(loaninfo)
+                    let cratio = await temp_coll_contract.getLoanCollateralRatio(account, openloans[i])
+
+                    temp_loans.push(loaninfo);
+                    temp_ratio.push(cratio);
+                    temp_coll.push(temp_contract_address);
+                    temp_conjure.push(symbol);
+                }
+
+
+            }
+        }
+
+        console.log(temp_loans)
+        console.log(temp_ratio)
+        console.log(temp_coll)
+        console.log(temp_conjure)
+        setloanrations(temp_ratio)
+        setloanarray(temp_loans)
+        setcollarrayy(temp_coll)
+        setconjurearray(temp_conjure)
     }
 
     async function checkConjureDetails() {
@@ -180,7 +275,6 @@ function Loan() {
             const lastprice = await conjure_contract._latestobservedprice();
             const lastpricetime = await conjure_contract._latestobservedtime();
             const ethprice = await conjure_contract.getLatestBNBUSDPrice();
-            //const ethprice = BigNumber.from(0);
 
 
             // get oracles
@@ -241,24 +335,6 @@ function Loan() {
             settotalissue(info._totalIssuedSynths)
             settotalloans(info._totalLoansCreated)
             setopenloans(info._totalOpenLoanCount)
-
-            // get all loan ids open
-            const lid = await collateral_contract.openLoanIDsByAccount(account)
-            let temp_loans = [];
-            let temp_ratio = [];
-
-            for (i = 0; i < lid.length; i++) {
-                let temp_lo = await collateral_contract.getLoan(account, lid[i]);
-                let cratio = await collateral_contract.getLoanCollateralRatio(account, lid[i])
-
-                temp_loans.push(temp_lo);
-                temp_ratio.push(cratio)
-            }
-
-            console.log(temp_loans)
-            console.log(temp_ratio)
-            setloanrations(temp_ratio)
-            setloanarray(temp_loans)
 
 
             const userb = await library.getBalance(account);
@@ -483,13 +559,14 @@ function Loan() {
         }
 
         checkConjureDetails();
+        getUserLoans();
         setloanamount("0")
         setcollamount("0")
         setcratio(BigNumber.from(0))
 
     }
 
-    async function closeloan(loanid)
+    async function closeloan(loanid, contractaddress)
     {
 
         if (loanid < 1)
@@ -498,7 +575,7 @@ function Loan() {
             return;
         }
 
-        const collateral_contract = isAddress(collateralAddress) && !!COLLATERAL_ABI && !!library ? new Contract(collateralAddress, COLLATERAL_ABI, library.getSigner(account)) : undefined;
+        const collateral_contract = isAddress(contractaddress) && !!COLLATERAL_ABI && !!library ? new Contract(contractaddress, COLLATERAL_ABI, library.getSigner(account)) : undefined;
 
         try {
             const {hash} = await collateral_contract.closeLoan(loanid);
@@ -508,9 +585,10 @@ function Loan() {
         }
 
         checkConjureDetails();
+        getUserLoans();
     }
 
-    async function withdraw(loanid)
+    async function withdraw(loanid, contractaddress)
     {
 
         if (withdrawamount <= 0)
@@ -519,7 +597,7 @@ function Loan() {
             return;
         }
 
-        const collateral_contract = isAddress(collateralAddress) && !!COLLATERAL_ABI && !!library ? new Contract(collateralAddress, COLLATERAL_ABI, library.getSigner(account)) : undefined;
+        const collateral_contract = isAddress(contractaddress) && !!COLLATERAL_ABI && !!library ? new Contract(contractaddress, COLLATERAL_ABI, library.getSigner(account)) : undefined;
         const withdraw_eth = parseEther(withdrawamount);
 
         try {
@@ -530,10 +608,11 @@ function Loan() {
         }
 
         checkConjureDetails();
+        getUserLoans();
         setwithdrawamount(0);
     }
 
-    async function deposit(loanid)
+    async function deposit(loanid, contractaddress)
     {
 
         if (depositamount <= 0)
@@ -542,7 +621,7 @@ function Loan() {
             return;
         }
 
-        const collateral_contract = isAddress(collateralAddress) && !!COLLATERAL_ABI && !!library ? new Contract(collateralAddress, COLLATERAL_ABI, library.getSigner(account)) : undefined;
+        const collateral_contract = isAddress(contractaddress) && !!COLLATERAL_ABI && !!library ? new Contract(contractaddress, COLLATERAL_ABI, library.getSigner(account)) : undefined;
         const depositeth = parseEther(depositamount);
 
         const trans_obj = {
@@ -559,6 +638,7 @@ function Loan() {
         }
 
         checkConjureDetails();
+        getUserLoans();
         setdepositamount(0);
     }
 
@@ -582,167 +662,8 @@ function Loan() {
                         </p>
                     </div>
                 </div>
-                <div className="py-4 w-full">
 
-                    <div className="md:flex flex-row w-full justify-center">
-                        <div className="py-4 pr-2 pl-2  rounded-2xl w-full md:w-6/12 bg-purple-500">
-                            <p className="text-center text-lg font-bold text-white">
-                                Enter Conjure Address or ENS Name
-                            </p>
-                            <input required className="text-center w-full justify-center" type="text"
-                                   onChange={e => handleChangeConjureAddress( e)} value={conjureAddress}/>
-
-                        </div>
-
-                    </div>
-                </div>
-                <div className="py-1 w-full">
-
-                    <div className="py-1 w-full flex justify-center text-center">
-                        <div className="py-1 w-full">
-                            <button className="py-3 pr-2 pl-2 rounded-3xl md:w-3/12 w-6/12 hover:bg-purple-300 cursor-pointer bg-gradient-to-r from-pink-500 to-purple-500"
-                                    type="button" onClick={() => checkConjureDetails() }>
-                                <p className="capitalize text-center text-sm font-bold text-white">Get Details</p>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                {(ischecked ?
-
-                <div className="py-1 w-full">
-                    <div className="py-4 w-full flex justify-center">
-                        <div className="py-4  rounded-2xl  w-full bg-purple-500">
-                            <p className="text-center text-lg font-bold text-white">
-                                Loan Overview for {tokenname} ({tokensymbol})
-                            </p>
-                        </div>
-                    </div>
-                    <div className="py-4 w-full">
-                        <div className="md:flex flex-row w-full justify-center rounded-2xl w-full min-w-0 bg-purple-500">
-                            <div
-                                className="py-4 pr-2 sm:pr-10 pl-2 sm:mr-2 ">
-                                <p className="text-center text-lg font-bold text-white">
-                                    Minting Fee
-                                </p>
-                                <p className="text-center text-lg font-bold text-white">
-                                    {issuefee.toNumber() / 100}%
-                                </p>
-                            </div>
-                            <div
-                                className="py-4 pl-2 sm:pr-10 pr-2  ">
-                                <p className="text-center text-lg font-bold text-white">
-                                    # Open Loans
-                                </p>
-                                <p className="text-center text-lg font-bold text-white">
-                                    {openloans.toNumber()}
-                                </p>
-                            </div>
-                            <div
-                                className="py-4 pl-2 sm:pr-10 pr-2  ">
-                                <p className="text-center text-lg font-bold text-white">
-                                    {tokensymbol} Supply
-                                </p>
-                                <p className="text-center text-lg font-bold text-white">
-                                    {formatEther(totalissue)}
-                                </p>
-                            </div>
-                            <div
-                                className="py-4 pl-2 pr-2 sm:pr-10  ">
-                                <p className="text-center text-lg font-bold text-white">
-                                    Min Collateral Size
-                                </p>
-                                <p className="text-center text-lg font-bold text-white">
-                                    {formatEther(mincoll)} BNB
-                                </p>
-                            </div>
-                            <div
-                                className="py-4 pl-2 pr-2 sm:pr-10 ">
-                                <p className="text-center text-lg font-bold text-white">
-                                    C Ratio
-                                </p>
-                                <p className="text-center text-lg font-bold text-white">
-                                    {formatEther(collratio)}%
-                                </p>
-                            </div>
-                            <div
-                                className="py-4 pl-2 pr-2 sm:pr-10  ">
-                                <p className="text-center text-lg font-bold text-white">
-                                    Locked BNB
-                                </p>
-                                <p className="text-center text-lg font-bold text-white">
-                                    {formatEther(ethbalance)}
-                                </p>
-                            </div>
-                            <div
-                                className="py-4 pl-2 pr-2 sm:pr-10 ">
-                                <p className="text-center text-lg font-bold text-white">
-                                    Asset Price
-                                </p>
-                                <p className="text-center text-lg font-bold text-white">
-                                    {formatEther(lastPrice)}$
-                                </p>
-                            </div>
-                            <div
-                                className="py-4 pl-2 pr-2 sm:pr-10 ">
-                                <p className="text-center text-lg font-bold text-white">
-                                    BNB Price
-                                </p>
-                                <p className="text-center text-lg font-bold text-white">
-                                    {formatEther(lastetherprice)}$
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                :
-                ""
-                )}
-
-                {(ischecked ?
-
-                        <div className="py-1 w-full">
-                            <div className="py-4 w-full flex justify-center">
-                                <div className="py-4  rounded-2xl  w-full bg-purple-500">
-                                    <p className="text-center text-lg font-bold text-white">
-                                        Open New Loan
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="py-4 w-full">
-                                <div className="md:flex flex-row w-full justify-center">
-                                    <div
-                                        className="py-4 pr-2 pl-2 sm:mr-2 mt-2 rounded-2xl w-full md:w-6/12 min-w-0 bg-purple-500">
-                                        <p className="text-center text-lg font-bold text-white">
-                                            Amount to Mint:
-                                        </p>
-                                        <input className="text-center w-full justify-center" type="number"
-                                               onChange={e => handleChangeLoanAmount(e)} />
-                                        <p className="text-center text-lg font-bold text-white">
-                                            Collateral Amount (in BNB):
-                                        </p>
-                                        <input className="text-center w-full justify-center" type="number"
-                                               onChange={e => handleChangeCollAmount(e)} />
-                                        <p className="text-center text-lg font-bold text-white">
-                                            C Ratio:<br/>
-                                            {format_friendly(cratio.mul(100),4)}%
-                                        </p>
-                                        <div className="py-1 w-full text-center">
-                                            <button className="py-3 pr-2 pl-2 rounded-3xl md:w-3/12 w-6/12 bg-indigo-500 hover:bg-purple-300 cursor-pointer bg-gradient-to-r from-pink-500 to-purple-500"
-                                                    type="button" onClick={() => openloan()}>
-                                                <p className="capitalize text-center text-sm  font-bold text-white">Open Loan</p>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        :
-                        ""
-                )}
-
-                {(ischecked ?
+                {(account && loanarray && loanarray.length > 0 ?
 
                         <div className="py-1 w-full">
                             <div className="py-4 w-full flex justify-center">
@@ -756,11 +677,20 @@ function Loan() {
                             {loanarray.map((field, idx) => {
                                 return (
                                     <div className="py-4 w-full" key={`${field}-${idx}`}>
-                                        <div className="md:flex flex-row w-full justify-center rounded-2xl w-full min-w-0 bg-purple-500">
+                                        <div className="md:flex flex-row w-full justify-center rounded-2xl w-full min-w-0 bg-indigo-400">
                                             <div
                                                 className="py-4 pr-2 sm:pr-10 sm:pl-8 pl-2 sm:mr-2 ">
                                                 <p className="text-center text-lg font-bold text-white">
-                                                    ID
+                                                    Asset
+                                                </p>
+                                                <p className="text-center text-lg font-bold text-white">
+                                                    {conjurearray[idx]}
+                                                </p>
+                                            </div>
+                                            <div
+                                                className="py-4 pr-2 sm:pr-10 sm:pl-8 pl-2 sm:mr-2 ">
+                                                <p className="text-center text-lg font-bold text-white">
+                                                    Unique ID
                                                 </p>
                                                 <p className="text-center text-lg font-bold text-white">
                                                     {field.loanID.toNumber()}
@@ -809,7 +739,7 @@ function Loan() {
                                                 <input className="text-center w-full justify-center" type="number" value={depositamount} onChange={e => handleChangeDeposit(e)}
                                                 />
                                                 <button className="py-3 pr-2 pl-2 rounded-3xl bg-indigo-500 hover:bg-purple-300 cursor-pointer bg-gradient-to-r from-pink-500 to-purple-500"
-                                                        type="button" onClick={() => deposit(field.loanID)}>
+                                                        type="button" onClick={() => deposit(field.loanID, collarray[idx])}>
                                                     <p className="capitalize text-center text-sm  font-bold text-white">Deposit</p>
                                                 </button>
                                             </div>
@@ -818,15 +748,15 @@ function Loan() {
                                                     Withdraw BNB
                                                 </p>
                                                 <input className="text-center w-full justify-center" type="number" value={withdrawamount} onChange={e => handleChangeWithdraw(e)}
-                                                      />
+                                                />
                                                 <button className="py-3 pr-2 pl-2 rounded-3xl bg-indigo-500 hover:bg-purple-300 cursor-pointer bg-gradient-to-r from-pink-500 to-purple-500"
-                                                        type="button" onClick={() => withdraw(field.loanID)}>
+                                                        type="button" onClick={() => withdraw(field.loanID, collarray[idx])}>
                                                     <p className="capitalize text-center text-sm  font-bold text-white">Withdraw</p>
                                                 </button>
                                             </div>
                                             <div className="py-4 pl-2 pr-2 sm:pr-10 text-center">
                                                 <button className="py-3 pr-2 pl-2 rounded-3xl bg-indigo-500 hover:bg-purple-300 cursor-pointer bg-gradient-to-r from-pink-500 to-purple-500"
-                                                        type="button" onClick={() => closeloan(field.loanID)}>
+                                                        type="button" onClick={() => closeloan(field.loanID, collarray[idx])}>
                                                     <p className="capitalize text-center text-sm  font-bold text-white">Close Loan</p>
                                                 </button>
                                             </div>
@@ -836,6 +766,174 @@ function Loan() {
                             })}
 
 
+                        </div>
+
+                        :
+                        ""
+                )}
+
+                <div className="py-4 w-full flex justify-center">
+                    <div className="py-4  rounded-2xl  w-full bg-purple-500">
+                        <p className="text-center text-lg font-bold text-white">
+                            Open A New Loan
+                        </p>
+                    </div>
+                </div>
+
+
+                <div className="py-4 w-full">
+
+                    <div className="md:flex flex-row w-full justify-center">
+                        <div className="py-4 pr-2 pl-2  rounded-2xl w-full md:w-6/12 bg-purple-500">
+                            <p className="text-center text-lg font-bold text-white">
+                                Enter Conjure Address or ENS Name
+                            </p>
+                            <input required className="text-center w-full justify-center" type="text"
+                                   onChange={e => handleChangeConjureAddress( e)} value={conjureAddress}/>
+                        </div>
+
+                    </div>
+                </div>
+                <div className="py-1 w-full">
+
+                    <div className="py-1 w-full flex justify-center text-center">
+                        <div className="py-1 w-full">
+                            <button className="py-3 pr-2 pl-2 rounded-3xl md:w-3/12 w-6/12 hover:bg-purple-300 cursor-pointer bg-gradient-to-r from-pink-500 to-purple-500"
+                                    type="button" onClick={() => checkConjureDetails() }>
+                                <p className="capitalize text-center text-sm font-bold text-white">Submit Address</p>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {(ischecked ?
+
+                        <div className="py-1 w-full">
+                            <div className="py-4 w-full flex justify-center">
+                                <div className="py-4  rounded-2xl  w-full bg-purple-500">
+                                    <p className="text-center text-lg font-bold text-white">
+                                        Loan Overview for {tokenname} ({tokensymbol})
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="py-4 w-full">
+                                <div className="md:flex flex-row w-full justify-center rounded-2xl w-full min-w-0 bg-purple-500">
+                                    <div
+                                        className="py-4 pr-2 sm:pr-10 pl-2 sm:mr-2 ">
+                                        <p className="text-center text-lg font-bold text-white">
+                                            Minting Fee
+                                        </p>
+                                        <p className="text-center text-lg font-bold text-white">
+                                            {issuefee.toNumber() / 100}%
+                                        </p>
+                                    </div>
+                                    <div
+                                        className="py-4 pl-2 sm:pr-10 pr-2  ">
+                                        <p className="text-center text-lg font-bold text-white">
+                                            # Open Loans
+                                        </p>
+                                        <p className="text-center text-lg font-bold text-white">
+                                            {openloans.toNumber()}
+                                        </p>
+                                    </div>
+                                    <div
+                                        className="py-4 pl-2 sm:pr-10 pr-2  ">
+                                        <p className="text-center text-lg font-bold text-white">
+                                            {tokensymbol} Supply
+                                        </p>
+                                        <p className="text-center text-lg font-bold text-white">
+                                            {formatEther(totalissue)}
+                                        </p>
+                                    </div>
+                                    <div
+                                        className="py-4 pl-2 pr-2 sm:pr-10  ">
+                                        <p className="text-center text-lg font-bold text-white">
+                                            Min Collateral Size
+                                        </p>
+                                        <p className="text-center text-lg font-bold text-white">
+                                            {formatEther(mincoll)} BNB
+                                        </p>
+                                    </div>
+                                    <div
+                                        className="py-4 pl-2 pr-2 sm:pr-10 ">
+                                        <p className="text-center text-lg font-bold text-white">
+                                            C Ratio
+                                        </p>
+                                        <p className="text-center text-lg font-bold text-white">
+                                            {formatEther(collratio)}%
+                                        </p>
+                                    </div>
+                                    <div
+                                        className="py-4 pl-2 pr-2 sm:pr-10  ">
+                                        <p className="text-center text-lg font-bold text-white">
+                                            Locked BNB
+                                        </p>
+                                        <p className="text-center text-lg font-bold text-white">
+                                            {formatEther(ethbalance)}
+                                        </p>
+                                    </div>
+                                    <div
+                                        className="py-4 pl-2 pr-2 sm:pr-10 ">
+                                        <p className="text-center text-lg font-bold text-white">
+                                            Asset Price
+                                        </p>
+                                        <p className="text-center text-lg font-bold text-white">
+                                            {formatEther(lastPrice)}$
+                                        </p>
+                                    </div>
+                                    <div
+                                        className="py-4 pl-2 pr-2 sm:pr-10 ">
+                                        <p className="text-center text-lg font-bold text-white">
+                                            BNB Price
+                                        </p>
+                                        <p className="text-center text-lg font-bold text-white">
+                                            {formatEther(lastetherprice)}$
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        :
+                        ""
+                )}
+
+                {(ischecked ?
+
+                        <div className="py-1 w-full">
+                            <div className="py-4 w-full flex justify-center">
+                                <div className="py-4  rounded-2xl  w-full bg-purple-500">
+                                    <p className="text-center text-lg font-bold text-white">
+                                        Open New Loan
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="py-4 w-full">
+                                <div className="md:flex flex-row w-full justify-center">
+                                    <div
+                                        className="py-4 pr-2 pl-2 sm:mr-2 mt-2 rounded-2xl w-full md:w-6/12 min-w-0 bg-purple-500">
+                                        <p className="text-center text-lg font-bold text-white">
+                                            Amount to Mint:
+                                        </p>
+                                        <input className="text-center w-full justify-center" type="number"
+                                               onChange={e => handleChangeLoanAmount(e)} />
+                                        <p className="text-center text-lg font-bold text-white">
+                                            Collateral Amount (in BNB):
+                                        </p>
+                                        <input className="text-center w-full justify-center" type="number"
+                                               onChange={e => handleChangeCollAmount(e)} />
+                                        <p className="text-center text-lg font-bold text-white">
+                                            C Ratio:<br/>
+                                            {format_friendly(cratio.mul(100),4)}%
+                                        </p>
+                                        <div className="py-1 w-full text-center">
+                                            <button className="py-3 pr-2 pl-2 rounded-3xl md:w-3/12 w-6/12 bg-indigo-500 hover:bg-purple-300 cursor-pointer bg-gradient-to-r from-pink-500 to-purple-500"
+                                                    type="button" onClick={() => openloan()}>
+                                                <p className="capitalize text-center text-sm  font-bold text-white">Open Loan</p>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         :

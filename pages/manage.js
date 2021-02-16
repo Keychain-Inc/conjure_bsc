@@ -8,7 +8,7 @@ import {isAddress} from "@ethersproject/address";
 import {Contract} from "@ethersproject/contracts";
 import ABI from "../constants/abi/conjure.json";
 import Select, {components} from 'react-select'
-
+import Link from "next/link";
 import { useRouter } from 'next/router'
 import {
     CHAINLINK_OPTIONS,
@@ -52,7 +52,7 @@ function Manage() {
     const [numoracles, setnumoracles] = useState(0);
     const [lastPrice, setLastPrice] = useState(0);
     const [lastTime, setLastTime] = useState(BigNumber.from(0));
-    
+
     // collateral
     const [collateralAddress, setCollateralAddress] = useState('');
 
@@ -148,6 +148,12 @@ function Manage() {
     async function checkConjureDetails() {
         console.log(conjureAddress)
 
+        if (!account)
+        {
+            addToast({body:"Please Connect your Wallet before accessing the manage interface", type: "error"});
+            return;
+        }
+
         let callingaddress = conjureAddress;
         let resolvedaddress = await library.resolveName(conjureAddress);
 
@@ -172,11 +178,11 @@ function Manage() {
             const init = await  conjure_contract._inited();
             setisinited(init);
             console.log(init)
-            
+
             const collateral = await  conjure_contract._collateralContract();
             setCollateralAddress(collateral)
             console.log(collateral)
-            
+
             const totalsupply = await conjure_contract.totalSupply();
             const symbol = await conjure_contract.symbol();
             const decimals = await conjure_contract.decimals();
@@ -847,6 +853,14 @@ function Manage() {
                                     </p>
                                 ))}
                             </div>
+                        </div>
+                        <div className="py-1 w-full text-center">
+                            <Link href="/loan">
+                                <button className="py-3 pr-2 pl-2 rounded-3xl md:w-3/12 w-6/12 bg-indigo-500 hover:bg-purple-300 cursor-pointer bg-gradient-to-r from-pink-500 to-purple-500"
+                                        type="button">
+                                    <p className="capitalize text-center text-sm  font-bold text-white">Open A Loan</p>
+                                </button>
+                            </Link>
                         </div>
 
                     </div>

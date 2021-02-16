@@ -12,8 +12,8 @@
         "type": "address"
       },
       {
-        "internalType": "address payable",
-        "name": "_factoryowner",
+        "internalType": "address",
+        "name": "_factoryaddress",
         "type": "address"
       },
       {
@@ -555,10 +555,10 @@
   },
   {
     "inputs": [],
-    "name": "factoryowner",
+    "name": "factoryaddress",
     "outputs": [
       {
-        "internalType": "address payable",
+        "internalType": "address",
         "name": "",
         "type": "address"
       }

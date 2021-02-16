@@ -17,8 +17,8 @@
         "type": "address"
       },
       {
-        "internalType": "address payable",
-        "name": "factoryowner_",
+        "internalType": "address",
+        "name": "factoryaddress_",
         "type": "address"
       },
       {
@@ -214,10 +214,10 @@
   },
   {
     "inputs": [],
-    "name": "_factoryowner",
+    "name": "_factoryaddress",
     "outputs": [
       {
-        "internalType": "address payable",
+        "internalType": "address",
         "name": "",
         "type": "address"
       }
@@ -420,6 +420,19 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "bnbusdOracleaddress",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
@@ -433,6 +446,19 @@
       }
     ],
     "name": "burn",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "neworacle",
+        "type": "address"
+      }
+    ],
+    "name": "changeBnbUsdOracle",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -591,19 +617,6 @@
       }
     ],
     "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address payable",
-        "name": "_newOwner",
-        "type": "address"
-      }
-    ],
-    "name": "newFactoryOwner",
-    "outputs": [],
-    "stateMutability": "nonpayable",
     "type": "function"
   },
   {

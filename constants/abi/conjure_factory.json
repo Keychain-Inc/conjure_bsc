@@ -78,6 +78,19 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "getFactoryOwner",
+    "outputs": [
+      {
+        "internalType": "address payable",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "address payable",

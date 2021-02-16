@@ -29,7 +29,7 @@ function Home() {
 
             if (tokenName !== '' && tokenSymbol !== '') {
                 set_button_enabled(false);
-                set_unlocktext("Create your Conjure Asset");
+                set_unlocktext("Conjure Your Asset");
             } else {
                 set_button_enabled(true);
                 set_unlocktext("Please enter all values");
@@ -102,8 +102,7 @@ function Home() {
                         </p>
                         <br/>
                         <p className="text-center text-md font-bold text-white">
-                            Generalized, user created, synthetic assets using arbitrary oracles and BNB
-                            collateralization to peg and conjure assets.
+                            Conjure any fully collateralized, permissionless synthetic asset you want! Any oracle, any asset type and in only 2 transactions.
                         </p>
                     </div>
                 </div>
