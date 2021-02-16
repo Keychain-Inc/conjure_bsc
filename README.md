@@ -2,9 +2,9 @@
 Repo for the Conjure Project for the Binance BSC Hackathon
 
 # Deployed Addresses
-Conjure Factory Contract [0xC5f1B0F3B7A765F8ba2bdc9bf1F1002fd7B12234 link](https://testnet.bscscan.com/address/0xC5f1B0F3B7A765F8ba2bdc9bf1F1002fd7B12234#code)
+Conjure Factory Contract [0xC5f1B0F3B7A765F8ba2bdc9bf1F1002fd7B12234](https://testnet.bscscan.com/address/0xC5f1B0F3B7A765F8ba2bdc9bf1F1002fd7B12234#code)
 
-Collateral Factory Contract [0x0BCC2bbF5893A72188CE7c3DeaB206470Dd69978 link](https://testnet.bscscan.com/address/0x0BCC2bbF5893A72188CE7c3DeaB206470Dd69978#code)
+Collateral Factory Contract [0x0BCC2bbF5893A72188CE7c3DeaB206470Dd69978](https://testnet.bscscan.com/address/0x0BCC2bbF5893A72188CE7c3DeaB206470Dd69978#code)
 
 # Description
 By letting users simply set a reference source through oracle contracts to any contracts they wish, users can create completely arbitrary assets for any targeted assets they want. They can create synths which use med price from 5 oracles to produce say Synthetic BTC or av price from 4 sources to create a basket currency from USD, GBP, Euro, CNY to hedge monetary policy risk.
