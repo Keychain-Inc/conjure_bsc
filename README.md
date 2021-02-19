@@ -88,3 +88,9 @@ You can deposit more BNB as collateral, withdraw BNB and also close the loan her
 
 This repo will be built upon using the Next.js Framework for building the Dapp
 It will also cover a dedicated /contracts folder where all the Solidity sources and libraries will be held.
+
+# Setup
+
+The 2 Solidity Files which act as the Factory Contracts for all assets have been deployed to BSC Mainnet.
+
+This repository is also a Next Js Framework which is hosted on Netlify and communicates with the smart contracts via ethers.js
