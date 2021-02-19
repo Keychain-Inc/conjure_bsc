@@ -94,3 +94,13 @@ It will also cover a dedicated /contracts folder where all the Solidity sources 
 The 2 Solidity Files which act as the Factory Contracts for all assets have been deployed to BSC Mainnet.
 
 This repository is also a Next Js Framework which is hosted on Netlify and communicates with the smart contracts via ethers.js
+
+## Frontend setup
+```
+npm install
+```
+
+### Start local instance
+```
+npm run dev
+```
