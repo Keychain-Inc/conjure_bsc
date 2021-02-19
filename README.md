@@ -82,7 +82,7 @@ You can deposit more BNB as collateral, withdraw BNB and also close the loan her
 
 ## See Conjure in Action
 
-*Video goes here**
+[https://youtu.be/ZolE3A8tj_g](https://youtu.be/ZolE3A8tj_g)
 
 # Repo Structure
 
