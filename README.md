@@ -3,13 +3,13 @@ Repository for the Conjure Project for the Binance BSC Hackathon
 
 # Deployed Addresses
 
-##Mainnet
+## Mainnet
 Conjure Factory Contract [0x3c4903f67f7623a5627D217F50c6fd9C304E06b5](https://bscscan.com/address/0x3c4903f67f7623a5627D217F50c6fd9C304E06b5#code)
 
 Collateral Factory Contract [0x6295EC56620444454Dc7147495997Ae9422871e6](https://bscscan.com/address/0x6295EC56620444454Dc7147495997Ae9422871e6#code)
 
 Bsc Mainnet Dapp Address:  [https://bsc.conjure.finance](https://bsc.conjure.finance)
-##Bsc Testnet
+## Bsc Testnet
 Conjure Factory Contract [0xC5f1B0F3B7A765F8ba2bdc9bf1F1002fd7B12234](https://testnet.bscscan.com/address/0xC5f1B0F3B7A765F8ba2bdc9bf1F1002fd7B12234#code)
 
 Collateral Factory Contract [0x0BCC2bbF5893A72188CE7c3DeaB206470Dd69978](https://testnet.bscscan.com/address/0x0BCC2bbF5893A72188CE7c3DeaB206470Dd69978#code)
