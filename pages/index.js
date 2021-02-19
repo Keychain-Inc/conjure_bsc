@@ -4,7 +4,15 @@ import getReceipt from "../lib/getReceipt";
 import {addToast} from "../hooks/useToast";
 import {useEffect, useState} from 'react';
 import {useRouter} from "next/router";
-import {COLLATERAL_MINT_ADDRESS} from "../constants";
+import {COLLATERAL_MINT_ADDRESS, CONJURE_FACTORY_ADDRESS} from "../constants";
+import CONJURE_FACTORY_ABI from "../constants/abi/conjure_factory.json";
+import {Contract} from "@ethersproject/contracts";
+import {Interface} from "@ethersproject/abi";
+import ABI from "../constants/abi/conjure.json";
+import {isAddress} from "@ethersproject/address";
+import {formatEther} from "@ethersproject/units";
+import {DateTime} from "luxon";
+import Link from "next/link";
 
 function Home() {
     const router = useRouter();
@@ -20,6 +28,8 @@ function Home() {
     //constructor arguments
     const [tokenName, setTokenName] = useState('');
     const [tokenSymbol, setTokenSymbol] = useState('');
+
+    const [recent_assets, set_recent_assets] = useState([]);
 
     // effect hook for updating data
     useEffect(() => {
@@ -56,6 +66,15 @@ function Home() {
         return () => clearInterval(timer);
     }, [account, library, tokenName, tokenSymbol]);
 
+    // effect hook for updating data
+    useEffect(() => {
+        if (account)
+        {
+            getConjureAssets();
+        }
+
+    }, [account]);
+
 
     function handleChangeTokenName(event) {
         const values = event.target.value;
@@ -66,6 +85,55 @@ function Home() {
         const values = event.target.value;
         setTokenSymbol(values);
     }
+
+    async function getConjureAssets()
+    {
+        const conjurefactory_contract = isAddress(CONJURE_FACTORY_ADDRESS) && !!CONJURE_FACTORY_ABI && !!library ? new Contract(CONJURE_FACTORY_ADDRESS, CONJURE_FACTORY_ABI, library) : undefined;
+
+        // get all descriptions for the events
+        let filter = conjurefactory_contract.filters.NewConjureContract();
+        const past_events = await library.getLogs({
+            fromBlock: 0,
+            toBlock: "latest",
+            address: conjurefactory_contract.address,
+            topics: filter['topics']
+        });
+
+        const eventParser = new Interface(CONJURE_FACTORY_ABI)
+
+        let contract_array = [];
+
+        past_events?.map(event => {
+            const eventParsed = eventParser.parseLog(event).args
+            contract_array.push({deployed: eventParsed.deployed, blockNumber: event.blockNumber})
+        })
+
+        console.log(contract_array)
+
+        // get all loan ids open
+        let temp_conj_info = [];
+
+        let k;
+        for (k = 0; k < contract_array.length; k++) {
+            let temp_contract_address = contract_array[k].deployed;
+
+            const temp_conj_contract = isAddress(temp_contract_address) && !!ABI && !!library ? new Contract(temp_contract_address, ABI, library) : undefined;
+            const symbol = await temp_conj_contract.symbol();
+            const name = await temp_conj_contract.name();
+            const address = temp_conj_contract.address;
+            const price = await temp_conj_contract.getLatestPrice();
+
+            const blockData = await library.getBlock(contract_array[k].blockNumber)
+
+            let enddate = DateTime.fromSeconds(blockData.timestamp)
+            temp_conj_info.push({symbol: symbol, name: name, address: address, price: price, createtime: enddate.toLocaleString(DateTime.DATETIME_SHORT)});
+
+        }
+
+        console.log(temp_conj_info);
+        set_recent_assets(temp_conj_info);
+    }
+
 
     // nft dao call contract
     const callConjureMint = async () => {
@@ -146,6 +214,49 @@ function Home() {
                     </button>
                 </div>
             </div>
+
+            {(recent_assets.length > 0 ?
+
+                    <div className="py-1 w-full">
+                        <div className="py-4 w-full flex justify-center">
+                            <div className="py-4  rounded-2xl  w-full bg-purple-500">
+                                <p className="text-center text-lg font-bold text-white">
+                                    Recently Created Assets
+                                </p>
+                            </div>
+                        </div>
+                        <table className="table-auto py-4 w-full">
+                            <thead className="w-full justify-center rounded-2xl w-full min-w-0 bg-purple-500">
+                            <tr className="py-4 pr-2 sm:pr-10 sm:pl-8 pl-2 sm:mr-2 ">
+                                <th className="text-center sm:text-lg text-xs font-bold text-white border-white border-2">Name</th>
+                                <th className="text-center sm:text-lg text-xs font-bold text-white border-white border-2">Symbol</th>
+                                <th className="text-center sm:text-lg text-xs font-bold text-white border-white border-2">Price</th>
+                                <th className="text-center sm:text-lg text-xs font-bold text-white border-white border-2">Created</th>
+                            </tr>
+                            </thead>
+                            <tbody className="w-full justify-center rounded-2xl w-full min-w-0">
+
+                            {recent_assets.map((field, idx) => {
+                                return (
+                                    <Link href={"/manage" + "?address=" + recent_assets[idx].address} key={`${field}-${idx}`}>
+                                        <tr className="py-4 pr-2 sm:pr-10 sm:pl-8 pl-2 sm:mr-2 cursor-pointer bg-indigo-400 hover:bg-purple-400">
+                                            <td className="text-center sm:text-lg text-xs font-bold text-white border-white border-2 ">{recent_assets[idx].name}</td>
+                                            <td className="text-center sm:text-lg text-xs font-bold text-white border-white border-2 ">{recent_assets[idx].symbol}</td>
+                                            <td className="text-center sm:text-lg text-xs font-bold text-white border-white border-2">${formatEther(recent_assets[idx].price)}</td>
+                                            <td className="text-center sm:text-lg text-xs font-bold text-white border-white border-2">{recent_assets[idx].createtime}</td>
+                                        </tr>
+                                    </Link>
+                                );
+                            })}
+                            </tbody>
+                        </table>
+
+
+                    </div>
+
+                    :
+                    ""
+            )}
         </div>
     );
 }

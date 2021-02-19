@@ -855,7 +855,7 @@ function Manage() {
                             </div>
                         </div>
                         <div className="py-1 w-full text-center">
-                            <Link href="/loan">
+                            <Link href={"/loan" + "?address=" + conjureAddress}>
                                 <button className="py-3 pr-2 pl-2 rounded-3xl md:w-3/12 w-6/12 bg-indigo-500 hover:bg-purple-300 cursor-pointer bg-gradient-to-r from-pink-500 to-purple-500"
                                         type="button">
                                     <p className="capitalize text-center text-sm  font-bold text-white">Open A Loan</p>

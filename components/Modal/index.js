@@ -81,8 +81,9 @@ export const Modal = ({
 
         [data-reach-dialog-content] {
           width: 100%;
-          border-radius: var(--radius);
+          border-radius: 1rem;
           outline: none;
+          background-color: #805ad5;
         }
 
         .mw-regular {
