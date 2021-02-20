@@ -16,7 +16,7 @@ Collateral Factory Contract [0x0BCC2bbF5893A72188CE7c3DeaB206470Dd69978](https:/
 
 Bsc Testnet Dapp Address:  [https://bsctestnet.conjure.finance](https://bsctestnet.conjure.finance)
 
-![Logo](media/conjure.PNG)
+![Logo](media/conjure.png)
 Added the logo here as well cause the upload on gitcoin was not working
 
 # Description
